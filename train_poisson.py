@@ -166,7 +166,7 @@ class EnhancedTensorBoardTrainer(Trainer):
         # 额外保存彩色热力图版本
         colored_fname = str(fname).replace('.png', '_colored.png')
         self.save_colored_image(grid_sampled, colored_fname)
-        
+        self.save_image_with_coords(grid_sampled, fname)
         return grid_sampled
     
     def save_colored_image(self, tensor, fname):
@@ -184,7 +184,33 @@ class EnhancedTensorBoardTrainer(Trainer):
             plt.tight_layout()
             plt.savefig(fname, bbox_inches='tight', dpi=300)
             plt.close()
-    
+
+    def save_image_with_coords(self, tensor, fname):
+        """保存坐标增强图像数据 (x, y, value) 到 .npz"""
+        # tensor: shape [1, H, W] or [C, H, W] or [B, C, H, W]
+        img = tensor.cpu().numpy()
+        if img.shape[0] == 1:  # 单通道图像
+            # 移除通道维度
+            tensor = img.squeeze(0)
+
+        H, W = tensor.shape
+
+        # 构建归一化坐标
+        x = np.linspace(0, 0.01*W, W)
+        y = np.linspace(0, 0.01*H, H)
+        xx, yy = np.meshgrid(x, y)  # shape: (H, W)
+        coords = np.stack([xx.ravel(), yy.ravel()], axis=-1)  # shape: (H*W, 2)
+        values = tensor.ravel()[:, None]  # shape: (H*W, 1)
+
+        coords_values = np.concatenate([coords, values], axis=1)  # (H*W, 3)
+
+        # 生成输出文件名
+        coords_fname = fname.replace(".png", "_coords.npz")
+
+        # 保存
+        np.savez(coords_fname, data=coords_values)
+
+
     def log_images(self, images, step):
         """重写图像记录方法，增加彩色可视化支持"""
         if not self.is_main:
@@ -313,7 +339,7 @@ class EnhancedTensorBoardTrainer(Trainer):
 def main():
     # 加载数据集
     poisson_dataset = PoissonImageDataset(
-        "/data3/bx/2D-poisson-PDE-Solver/poisson_dataset_5000.npz",
+        "poisson_dataset_5000.npz",
         normalize=True,
         normalization_precision=1e-10  # 更高精度的归一化
     )
@@ -342,7 +368,7 @@ def main():
         rectified_flow=rectified_flow,
         dataset=poisson_dataset,
         num_train_steps=70000,  # 增加训练步数
-        batch_size=64,
+        batch_size=16,
         results_folder="./results_poisson_enhanced",
         checkpoints_folder="./checkpoints_poisson_enhanced",
         learning_rate=5e-5,  # 使用更小的学习率提高稳定性
