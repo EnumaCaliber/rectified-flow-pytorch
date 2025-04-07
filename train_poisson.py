@@ -42,25 +42,22 @@ from rectified_flow_pytorch import RectifiedFlow, Unet, Trainer
 # 定义 Unet 模型
 model = Unet(
     dim=64,
-    channels=1,  # Poisson 图像是单通道
+    channels = 1,  # Poisson 图像是单通道
 )
 
 # 构建 RectifiedFlow 实例
 rectified_flow = RectifiedFlow(
     model,
-    predict="flow",  # or "noise"
-    loss_fn="mse",  # 可以改成 pseudo_huber
 )
 
 # 加载数据集
-poisson_dataset = PoissonImageDataset("poisson_dataset_200.npz")
+poisson_dataset = PoissonImageDataset("poisson_dataset_5000.npz")
 
 # 启动 Trainer
 trainer = Trainer(
     rectified_flow=rectified_flow,
     dataset=poisson_dataset,
-    num_train_steps=500,
-    batch_size=16,
+    num_train_steps=70000,
     results_folder="./results_poisson",
     checkpoints_folder="./checkpoints_poisson",
 )
